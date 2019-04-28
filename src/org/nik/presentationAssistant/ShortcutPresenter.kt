@@ -22,11 +22,14 @@ package org.nik.presentationAssistant
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.actionSystem.ex.AnActionListener
+import com.intellij.openapi.application.ApplicationActivationListener
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.keymap.MacKeymapUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.SystemInfo
+import com.intellij.openapi.wm.IdeFrame
 import java.awt.Font
 import java.util.*
 import javax.swing.KeyStroke
@@ -54,7 +57,13 @@ class ShortcutPresenter : Disposable {
     }
 
     private fun enable() {
-        ActionManager.getInstance().addAnActionListener(object: AnActionListener {
+        ApplicationManager.getApplication().messageBus.connect()
+                .subscribe(ApplicationActivationListener.TOPIC, object : ApplicationActivationListener {
+                    override fun applicationActivated(ideFrame: IdeFrame?) {
+                         ideFrame?.project?.run { showProjectInfo(this) }
+                    }
+                })
+        ActionManager.getInstance().addAnActionListener(object : AnActionListener {
             override fun beforeActionPerformed(action: AnAction, dataContext: DataContext, event: AnActionEvent?) {
                 val actionId = ActionManager.getInstance().getId(action) ?: return
 
@@ -103,6 +112,18 @@ class ShortcutPresenter : Disposable {
 
     private fun MutableList<Pair<String, Font?>>.addText(text: String) {
         this.add(Pair(text, null))
+    }
+
+    private fun showProjectInfo(project: Project) {
+        if (!project.isDisposed && project.isOpen) {
+            val fragments = ArrayList<Pair<String, Font?>>()
+            fragments.addText("<b>${project.name}</b>")
+            if (infoPanel == null || !infoPanel!!.canBeReused()) {
+                infoPanel = ActionInfoPanel(project, fragments)
+            } else {
+                infoPanel!!.updateText(project, fragments)
+            }
+        }
     }
 
     fun showActionInfo(actionData: ActionData) {
