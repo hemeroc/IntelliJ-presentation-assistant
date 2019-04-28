@@ -45,6 +45,7 @@ class PresentationAssistantState {
     var hideDelay = 4*1000
     var mainKeymap = getDefaultMainKeymap()
     var alternativeKeymap = getDefaultAlternativeKeymap()
+    var showProjectName = true
     var horizontalAlignment = PopupHorizontalAlignment.CENTER
     var verticalAlignment = PopupVerticalAlignment.BOTTOM
 }
@@ -132,6 +133,7 @@ class PresentationAssistantConfigurable : Configurable, SearchableConfigurable {
     private val altKeymapPanel = KeymapDescriptionPanel()
     private val fontSizeField = JTextField(5)
     private val hideDelayField = JTextField(5)
+    private val showProjectName = JCheckBox()
     private val horizontalAlignmentButtons = PopupHorizontalAlignment.values().associate { it to JRadioButton(it.name.toLowerCase().capitalize()) }
     private val verticalAlignmentButtons = PopupVerticalAlignment.values().associate { it to JRadioButton(it.name.toLowerCase().capitalize()) }
     private val mainPanel: JPanel
@@ -158,6 +160,7 @@ class PresentationAssistantConfigurable : Configurable, SearchableConfigurable {
                            .addVerticalGap(10)
                            .addLabeledComponent("Main Keymap:", mainKeymapPanel.mainPanel, true)
                            .addLabeledComponent(showAltKeymap, altKeymapPanel.mainPanel, true)
+                           .addLabeledComponent("Show project name on focus:", showProjectName)
         showAltKeymap.addActionListener {
             altKeymapPanel.setEnabled(showAltKeymap.isSelected)
         }
@@ -179,6 +182,7 @@ class PresentationAssistantConfigurable : Configurable, SearchableConfigurable {
                                 || isDigitsOnly(hideDelayField.text) && (hideDelayField.text != configuration.configuration.hideDelay.toString())
                                 || configuration.configuration.mainKeymap != mainKeymapPanel.getDescription()
                                 || configuration.configuration.alternativeKeymap != getAlternativeKeymap()
+                                || configuration.configuration.showProjectName != showProjectName.isSelected
                                 || !horizontalAlignmentButtons[configuration.configuration.horizontalAlignment]!!.isSelected
                                 || !verticalAlignmentButtons[configuration.configuration.verticalAlignment]!!.isSelected
 
@@ -189,6 +193,7 @@ class PresentationAssistantConfigurable : Configurable, SearchableConfigurable {
         configuration.setHideDelay(hideDelayField.text.trim().toInt())
         configuration.configuration.mainKeymap = mainKeymapPanel.getDescription()
         configuration.configuration.alternativeKeymap = getAlternativeKeymap()
+        configuration.configuration.showProjectName = showProjectName.isSelected
         configuration.configuration.horizontalAlignment = horizontalAlignmentButtons.entries.find { it.value.isSelected }!!.key
         configuration.configuration.verticalAlignment = verticalAlignmentButtons.entries.find { it.value.isSelected }!!.key
     }
@@ -197,6 +202,7 @@ class PresentationAssistantConfigurable : Configurable, SearchableConfigurable {
         fontSizeField.text = configuration.configuration.fontSize.toString()
         hideDelayField.text = configuration.configuration.hideDelay.toString()
         showAltKeymap.isSelected = configuration.configuration.alternativeKeymap != null
+        showProjectName.isSelected = configuration.configuration.showProjectName
         mainKeymapPanel.reset(configuration.configuration.mainKeymap)
         altKeymapPanel.reset(configuration.configuration.alternativeKeymap ?: KeymapDescription("", ""))
         horizontalAlignmentButtons.forEach { value, button -> button.isSelected = configuration.configuration.horizontalAlignment == value }

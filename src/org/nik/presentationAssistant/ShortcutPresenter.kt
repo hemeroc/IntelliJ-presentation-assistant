@@ -60,7 +60,9 @@ class ShortcutPresenter : Disposable {
         ApplicationManager.getApplication().messageBus.connect()
                 .subscribe(ApplicationActivationListener.TOPIC, object : ApplicationActivationListener {
                     override fun applicationActivated(ideFrame: IdeFrame?) {
-                         ideFrame?.project?.run { showProjectInfo(this) }
+                        if(getPresentationAssistant().configuration.showProjectName) {
+                            ideFrame?.project?.run { showProjectInfo(this) }
+                        }
                     }
                 })
         ActionManager.getInstance().addAnActionListener(object : AnActionListener {
@@ -117,7 +119,7 @@ class ShortcutPresenter : Disposable {
     private fun showProjectInfo(project: Project) {
         if (!project.isDisposed && project.isOpen) {
             val fragments = ArrayList<Pair<String, Font?>>()
-            fragments.addText("<b>${project.name}</b>")
+            fragments.addText("<b>Project: </b>${project.name}")
             if (infoPanel == null || !infoPanel!!.canBeReused()) {
                 infoPanel = ActionInfoPanel(project, fragments)
             } else {
