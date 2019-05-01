@@ -20,18 +20,31 @@
 package org.nik.presentationAssistant
 
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.actionSystem.ActionGroup
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DataContext
+import com.intellij.openapi.actionSystem.IdeActions
+import com.intellij.openapi.actionSystem.KeyboardShortcut
+import com.intellij.openapi.actionSystem.Shortcut
 import com.intellij.openapi.actionSystem.ex.AnActionListener
 import com.intellij.openapi.application.ApplicationActivationListener
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.keymap.MacKeymapUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
+import com.intellij.openapi.project.ProjectManagerListener
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.wm.IdeFrame
+import com.intellij.openapi.wm.WindowManager
 import java.awt.Font
-import java.util.*
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
+import java.util.ArrayList
+import java.util.LinkedHashMap
+import javax.swing.JFrame
 import javax.swing.KeyStroke
 
 class ShortcutPresenter : Disposable {
@@ -50,20 +63,49 @@ class ShortcutPresenter : Disposable {
             IdeActions.ACTION_EDITOR_NEXT_TEMPLATE_VARIABLE)
     private val parentGroupIds = setOf("CodeCompletionGroup", "FoldingGroup", "GoToMenu", "IntroduceActionsGroup")
     private var infoPanel: ActionInfoPanel? = null
+    private var lastOpenedProject: Project? = null
     private val parentNames by lazy(::loadParentNames)
-    init
-    {
+    private val windowAdapters = mutableMapOf<JFrame, WindowAdapter>()
+
+    init {
         enable()
     }
 
+    private fun Project?.addProjectWindowListener() {
+        if (this == null) return
+        val frame = WindowManager.getInstance().getFrame(this) ?: return
+        val newWindowAdapter = object : WindowAdapter() {
+            override fun windowGainedFocus(e: WindowEvent?) {
+                showProjectInfo(this@addProjectWindowListener)
+            }
+        }
+        windowAdapters.compute(frame) { _, oldWindowAdapter ->
+            frame.removeWindowListener(oldWindowAdapter)
+            frame.addWindowFocusListener(newWindowAdapter)
+            newWindowAdapter
+        }
+    }
+
+    private fun Project?.removeProjectWindowListener() {
+        if (this == null) return
+        val frame = WindowManager.getInstance().getFrame(this) ?: return
+        windowAdapters.remove(frame)?.run {
+            frame.removeWindowListener(this)
+        }
+    }
+
     private fun enable() {
+        ProjectManager.getInstance().openProjects.forEach {
+            it.addProjectWindowListener()
+        }
         ApplicationManager.getApplication().messageBus.connect()
                 .subscribe(ApplicationActivationListener.TOPIC, object : ApplicationActivationListener {
-                    override fun applicationActivated(ideFrame: IdeFrame?) {
-                        if(getPresentationAssistant().configuration.showProjectName) {
-                            ideFrame?.project?.run { showProjectInfo(this) }
-                        }
-                    }
+                    override fun applicationDeactivated(ideFrame: IdeFrame?) { lastOpenedProject = null }
+                })
+        ApplicationManager.getApplication().messageBus.connect()
+                .subscribe(ProjectManager.TOPIC, object : ProjectManagerListener {
+                    override fun projectOpened(project: Project?) = project.addProjectWindowListener()
+                    override fun projectClosed(project: Project?) = project.removeProjectWindowListener()
                 })
         ActionManager.getInstance().addAnActionListener(object : AnActionListener {
             override fun beforeActionPerformed(action: AnAction, dataContext: DataContext, event: AnActionEvent?) {
@@ -117,8 +159,9 @@ class ShortcutPresenter : Disposable {
     }
 
     private fun showProjectInfo(project: Project) {
-        if (!project.isDisposed && project.isOpen) {
+        if (!project.isDisposed && project.isOpen && lastOpenedProject != project) {
             val fragments = ArrayList<Pair<String, Font?>>()
+            lastOpenedProject = project
             fragments.addText("<b>Project: </b>${project.name}")
             if (infoPanel == null || !infoPanel!!.canBeReused()) {
                 infoPanel = ActionInfoPanel(project, fragments)
@@ -218,6 +261,11 @@ class ShortcutPresenter : Disposable {
     }
 
     fun disable() {
+        windowAdapters.forEach { frame, windowAdapter ->
+            frame.removeWindowFocusListener(windowAdapter)
+            windowAdapters.remove(frame)
+        }
+        lastOpenedProject = null
         if (infoPanel != null) {
             infoPanel!!.close()
             infoPanel = null
