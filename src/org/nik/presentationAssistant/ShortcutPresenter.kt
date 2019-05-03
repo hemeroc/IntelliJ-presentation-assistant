@@ -163,7 +163,7 @@ class ShortcutPresenter : Disposable {
             val fragments = ArrayList<Pair<String, Font?>>()
             lastOpenedProject = project
             fragments.addText("<b>Project: </b>${project.name}")
-            if (infoPanel == null || !infoPanel!!.canBeReused()) {
+            if (infoPanel == null || !infoPanel!!.canBeReused(project)) {
                 infoPanel = ActionInfoPanel(project, fragments)
             } else {
                 infoPanel!!.updateText(project, fragments)
@@ -201,7 +201,7 @@ class ShortcutPresenter : Disposable {
 
         val realProject = actionData.project ?: ProjectManager.getInstance().openProjects.firstOrNull()
         if (realProject != null && !realProject.isDisposed && realProject.isOpen) {
-            if (infoPanel == null || !infoPanel!!.canBeReused()) {
+            if (infoPanel == null || !infoPanel!!.canBeReused(realProject)) {
                 infoPanel = ActionInfoPanel(realProject, fragments)
             } else {
                 infoPanel!!.updateText(realProject, fragments)

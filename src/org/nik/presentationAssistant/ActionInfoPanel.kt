@@ -50,10 +50,10 @@ class ActionInfoPanel(project: Project, textFragments: List<Pair<String, Font?>>
     private var phase = Phase.FADING_IN
     private val hintAlpha = if (UIUtil.isUnderDarcula()) 0.05.toFloat() else 0.1.toFloat()
     private val pluginConfiguration = getPresentationAssistant().configuration
+    private val ideFrame = WindowManager.getInstance().getIdeFrame(project)
     enum class Phase { FADING_IN, SHOWN, FADING_OUT, HIDDEN}
     init
     {
-        val ideFrame = WindowManager.getInstance().getIdeFrame(project)
         labelsPanel = NonOpaquePanel(FlowLayout(FlowLayout.CENTER, 0, 0))
         updateLabelText(project, textFragments)
         background = EditorColorsManager.getInstance().globalScheme.getColor(BACKGROUND_COLOR_KEY)
@@ -226,5 +226,8 @@ class ActionInfoPanel(project: Project, textFragments: List<Pair<String, Font?>>
         Disposer.dispose(animator)
     }
 
-    fun canBeReused(): Boolean = phase == Phase.FADING_IN || phase == Phase.SHOWN
+    fun canBeReused(project: Project): Boolean {
+        if (WindowManager.getInstance().getFrame(project) != ideFrame) return false
+        return (phase == Phase.FADING_IN || phase == Phase.SHOWN)
+    }
 }
